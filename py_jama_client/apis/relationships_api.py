@@ -119,16 +119,16 @@ class RelationshipsAPI:
                     **linked[item_type_key],
                     **page.linked[item_type_key],
                 }
-            # Break if the page contains no data, to avoid infinite loop
-            if not page.data:
-                py_jama_client_logger.warning(
-                    f"Received empty page for resource '{resource_path}' "
-                    f"with last_id={last_id}; breaking pagination loop."
-                )
+            if page.data:
+                last_id = page.data[-1]["id"]
+            else:
                 break
-            page_info = page.meta.get("pageInfo") or {"totalResults": 0}
-            last_id = page.data[-1]["id"]
-            total_results = page_info.get("totalResults")
+            page_info = page.meta.get("pageInfo")
+            if page_info:
+                total_results = page_info.get("totalResults", total_results)
+            else:
+                total_results = 0
+                break
             data.extend(page.data)
 
         return ClientResponse(meta, links, linked, data)
