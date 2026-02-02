@@ -248,7 +248,7 @@ class JamaClient:
         start_index = 0
         total_results = float("inf")
 
-        data, meta, links, linked = [], {}, {}, {} # type: ignore[var-annotated]
+        data, meta, links, linked = [], {}, {}, {}  # type: ignore[var-annotated]
         while len(data) < total_results:
             page = self.get_page(
                 resource,
@@ -268,10 +268,16 @@ class JamaClient:
                     **linked[item_type_key],
                     **page.linked[item_type_key],
                 }
-
+            if not page.data:
+                break
             page_info = page.meta.get("pageInfo")
-            start_index = page_info.get("startIndex") + allowed_results_per_page
-            total_results = page_info.get("totalResults")
+            if page_info:
+                start_index = (page_info.get("startIndex", 0)
+                               + allowed_results_per_page)
+                total_results = page_info.get("totalResults", total_results)
+            else:
+                total_results = 0
+                break
             data.extend(page.data)
 
         return ClientResponse(meta, links, linked, data)
