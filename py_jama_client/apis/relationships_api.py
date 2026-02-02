@@ -57,19 +57,19 @@ class RelationshipsAPI:
         # Minimal request to check if lastId is required
         response = self.client.get(
             resource_path,
-            params=params | {"maxResults": 1},
+            params=params | {"maxResults": 1, "omitCount": "true"},
             **kwargs)
-        if (response.status_code == 400 and
-                "lastId parameter is now required" in response.text):
+        if (response.status_code == 400
+                and "lastId parameter is now required" in response.text):
             last_id_required = True
         else:
             last_id_required = False
 
         if last_id_required:
             return self.get_all_lastid(
-                    resource_path,
-                    params,
-                    allowed_results_per_page=allowed_results_per_page,
+                resource_path,
+                params,
+                allowed_results_per_page=allowed_results_per_page,
             )
         else:
             return self.client.get_all(
@@ -119,9 +119,15 @@ class RelationshipsAPI:
                     **linked[item_type_key],
                     **page.linked[item_type_key],
                 }
-
-            page_info = page.meta.get("pageInfo")
-            last_id = page.data[-1]["id"] if page.data else last_id
+            # Break if the page contains no data, to avoid infinite loop
+            if not page.data:
+                py_jama_client_logger.warning(
+                    f"Received empty page for resource '{resource_path}' "
+                    f"with last_id={last_id}; breaking pagination loop."
+                )
+                break
+            page_info = page.meta.get("pageInfo") or {"totalResults": 0}
+            last_id = page.data[-1]["id"]
             total_results = page_info.get("totalResults")
             data.extend(page.data)
 
