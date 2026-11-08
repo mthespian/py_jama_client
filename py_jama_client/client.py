@@ -245,10 +245,9 @@ class JamaClient:
             raise ValueError("Allowed results per page must be between 1 and 50")
 
         start_index = 0
-        total_results = float("inf")
 
         data, meta, links, linked = [], {}, {}, {}  # type: ignore[var-annotated]
-        while len(data) < total_results:
+        while True:
             page = self.get_page(
                 resource,
                 start_index,
@@ -269,15 +268,15 @@ class JamaClient:
                 }
             if not page.data:
                 break
+            data.extend(page.data)
+            if len(page.data) < allowed_results_per_page:
+                break
             page_info = page.meta.get("pageInfo")
             if page_info:
-                start_index = (page_info.get("startIndex", 0)
+                start_index = (page_info.get("startIndex", start_index)
                                + allowed_results_per_page)
-                total_results = page_info.get("totalResults", total_results)
             else:
-                total_results = 0
-                break
-            data.extend(page.data)
+                start_index += allowed_results_per_page
 
         return ClientResponse(meta, links, linked, data)
 
@@ -369,6 +368,7 @@ class JamaClient:
                     "system under maintenance.",
                     status_code=status,
                     reason=response_message,
+                    headers=response.headers,
                 )
 
             raise APIClientException(
